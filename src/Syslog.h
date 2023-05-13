@@ -94,6 +94,7 @@ class Syslog {
 
     bool _sendLog(uint16_t pri, const char *message);
     bool _sendLog(uint16_t pri, const __FlashStringHelper *message);
+    bool _beginMessage(uint16_t pri) ;
 
   public:
     Syslog(UDP &client, uint8_t protocol = SYSLOG_PROTO_IETF);
@@ -107,6 +108,8 @@ class Syslog {
     Syslog &defaultPriority(uint16_t pri = LOG_KERN);
 
     Syslog &logMask(uint8_t priMask);
+
+    bool write(const uint8_t* buffer, unsigned int length);
 
     bool log(uint16_t pri, const __FlashStringHelper *message);
     bool log(uint16_t pri, const String &message);

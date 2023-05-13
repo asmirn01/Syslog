@@ -185,55 +185,36 @@ bool Syslog::log(const char *message) {
   return this->_sendLog(this->_priDefault, message);
 }
 
-// Private Methods /////////////////////////////////////////////////////////////
-
-inline bool Syslog::_sendLog(uint16_t pri, const char *message) {
-  int result;
-
-  if ((this->_server == NULL && this->_ip == INADDR_NONE) || this->_port == 0)
+bool Syslog::write(const uint8_t* buffer, unsigned int length) {
+  if (!_beginMessage(this->_priDefault)) {
     return false;
-
-  // Check priority against priMask values.
-  if ((LOG_MASK(LOG_PRI(pri)) & this->_priMask) == 0)
-    return true;
-
-  // Set default facility if none specified.
-  if ((pri & LOG_FACMASK) == 0)
-    pri = LOG_MAKEPRI(LOG_FAC(this->_priDefault), pri);
-
-  if (this->_server != NULL) {
-    result = this->_client->beginPacket(this->_server, this->_port);
-  } else {
-    result = this->_client->beginPacket(this->_ip, this->_port);
   }
-
-  if (result != 1)
-    return false;
-
-  // IETF Doc: https://tools.ietf.org/html/rfc5424
-  // BSD Doc: https://tools.ietf.org/html/rfc3164
-  this->_client->print('<');
-  this->_client->print(pri);
-  if (this->_protocol == SYSLOG_PROTO_IETF) {
-    this->_client->print(F(">1 - "));
-  } else {
-    this->_client->print(F(">"));
-  }
-  this->_client->print(this->_deviceHostname);
-  this->_client->print(' ');
-  this->_client->print(this->_appName);
-  if (this->_protocol == SYSLOG_PROTO_IETF) {
-    this->_client->print(F(" - - - \xEF\xBB\xBF"));
-  } else {
-    this->_client->print(F("[0]: "));
-  }
-  this->_client->print(message);
+  this->_client->write(buffer, length);
   this->_client->endPacket();
-
   return true;
 }
 
-inline bool Syslog::_sendLog(uint16_t pri, const __FlashStringHelper *message) {
+// Private Methods /////////////////////////////////////////////////////////////
+
+bool Syslog::_sendLog(uint16_t pri, const char *message) {
+  if (!_beginMessage(pri)) {
+    return false;
+  }
+  this->_client->print(message);
+  this->_client->endPacket();
+  return true;
+}
+
+bool Syslog::_sendLog(uint16_t pri, const __FlashStringHelper *message) {
+  if (!_beginMessage(pri)) {
+    return false;
+  }
+  this->_client->print(message);
+  this->_client->endPacket();
+  return true;
+}
+
+bool Syslog::_beginMessage(uint16_t pri) {
   int result;
 
   if ((this->_server == NULL && this->_ip == INADDR_NONE) || this->_port == 0)
@@ -241,7 +222,7 @@ inline bool Syslog::_sendLog(uint16_t pri, const __FlashStringHelper *message) {
 
   // Check priority against priMask values.
   if ((LOG_MASK(LOG_PRI(pri)) & this->_priMask) == 0)
-    return true;
+    return false;
 
   // Set default facility if none specified.
   if ((pri & LOG_FACMASK) == 0)
@@ -273,9 +254,6 @@ inline bool Syslog::_sendLog(uint16_t pri, const __FlashStringHelper *message) {
   } else {
     this->_client->print(F("[0]: "));
   }
-  this->_client->print(message);
-  this->_client->endPacket();
-
 
   return true;
 }
